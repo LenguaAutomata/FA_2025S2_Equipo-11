@@ -74,9 +74,9 @@ class AnalizadorSintactico:
         # Crear nodo de operación
         nodo_operacion = NodoArbol('OPERACION', token_operacion.valor)
         
-        # Parsear números dentro de la operación
+        # Parsear contenido (números u operaciones anidadas)
         while self.posicion_actual < len(self.tokens):
-            # Si encontramos el cierre, terminamos
+            # Si encontramos el cierre de la operación actual, terminamos
             if (self.token_actual() and 
                 self.token_actual().tipo == 'SIMBOLO_APERTURA' and
                 self.posicion_actual + 1 < len(self.tokens) and
@@ -92,7 +92,13 @@ class AnalizadorSintactico:
                     self.avanzar()  # >
                 break
             
-            # Parsear número
+            # Intentar parsear operación anidada primero
+            operacion_anidada = self.parsear_operacion_anidada()
+            if operacion_anidada:
+                nodo_operacion.agregar_hijo(operacion_anidada)
+                continue
+            
+            # Si no es operación anidada, intentar parsear número
             numero = self.parsear_numero()
             if numero:
                 nodo_operacion.agregar_hijo(numero)
@@ -100,6 +106,57 @@ class AnalizadorSintactico:
                 self.avanzar()
         
         return nodo_operacion
+    
+    def parsear_operacion_anidada(self):
+        """Parsear una operación anidada dentro de otra operación"""
+        inicio_pos = self.posicion_actual
+        
+        # Verificar si es una operación anidada: <Operacion= TIPO> ... </Operacion>
+        if not (self.coincidir('SIMBOLO_APERTURA') and 
+                self.coincidir('PALABRA_RESERVADA', 'OPERACION') and 
+                self.coincidir('IGUAL')):
+            self.posicion_actual = inicio_pos
+            return None
+        
+        # Obtener tipo de operación anidada
+        token_operacion = self.coincidir('PALABRA_RESERVADA')
+        if not token_operacion:
+            self.posicion_actual = inicio_pos
+            return None
+        
+        if not self.coincidir('SIMBOLO_CIERRE'):
+            self.posicion_actual = inicio_pos
+            return None
+        
+        # Crear nodo de operación anidada
+        nodo_anidado = NodoArbol('OPERACION', token_operacion.valor)
+        
+        # Parsear contenido de la operación anidada
+        while self.posicion_actual < len(self.tokens):
+            # Si encontramos el cierre de la operación anidada, terminamos
+            if (self.token_actual() and 
+                self.token_actual().tipo == 'SIMBOLO_APERTURA' and
+                self.posicion_actual + 1 < len(self.tokens) and
+                self.tokens[self.posicion_actual + 1].tipo == 'SIMBOLO_CIERRE_COMPLETO' and
+                self.posicion_actual + 2 < len(self.tokens) and
+                self.tokens[self.posicion_actual + 2].valor == 'OPERACION'):
+                
+                # Consumir </Operacion> de la operación anidada
+                self.avanzar()  # <
+                self.avanzar()  # /
+                self.avanzar()  # OPERACION
+                if self.token_actual() and self.token_actual().tipo == 'SIMBOLO_CIERRE':
+                    self.avanzar()  # >
+                break
+            
+            # Parsear números dentro de la operación anidada
+            numero = self.parsear_numero()
+            if numero:
+                nodo_anidado.agregar_hijo(numero)
+            else:
+                self.avanzar()
+        
+        return nodo_anidado
     
     def parsear_numero(self):
         """Parsear un número: <Numero> VALOR </Numero>"""
@@ -141,11 +198,11 @@ class EjecutorOperaciones:
             return float(nodo.valor)
         
         if nodo.tipo == 'OPERACION':
-            # Ejecutar hijos primero
-            if not nodo.hijos:
-                return 0
-            
+            # Ejecutar hijos primero (recursivamente)
             resultados_hijos = [EjecutorOperaciones.ejecutar(hijo) for hijo in nodo.hijos]
+            
+            if not resultados_hijos:
+                return 0
             
             # Aplicar operación
             if nodo.valor == 'SUMA':
@@ -177,10 +234,14 @@ class EjecutorOperaciones:
             elif nodo.valor == 'INVERSO':
                 if len(resultados_hijos) != 1:
                     raise ValueError("Inverso requiere exactamente 1 operando")
+                if resultados_hijos[0] == 0:
+                    raise ValueError("Inverso de cero no está definido")
                 resultado = 1 / resultados_hijos[0]
             elif nodo.valor == 'MOD':
                 if len(resultados_hijos) != 2:
                     raise ValueError("MOD requiere exactamente 2 operandos")
+                if resultados_hijos[1] == 0:
+                    raise ValueError("MOD por cero no está definido")
                 resultado = resultados_hijos[0] % resultados_hijos[1]
             else:
                 raise ValueError(f"Operación no soportada: {nodo.valor}")
@@ -232,7 +293,7 @@ class EjecutorOperaciones:
         html += f'{indent}    <strong>{nodo.valor}</strong>'
         
         if hasattr(nodo, 'resultado') and nodo.resultado is not None:
-            html += f' = <span class="resultado">{nodo.resultado:.2f}</span>'
+            html += f' = <span class="resultado">{nodo.resultado:.4f}</span>'
         
         html += f'\n{indent}</div>\n'
         

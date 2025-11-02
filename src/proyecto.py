@@ -57,10 +57,11 @@ class AnalizadorAritmeticoGUI:
         self.area_texto = scrolledtext.ScrolledText(main_frame, wrap=tk.WORD, width=80, height=30)
         self.area_texto.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(10, 0))
         
-        self.cargar_ejemplo_inicial()
+        self.cargar_ejemplo_complejo()
     
-    def cargar_ejemplo_inicial(self):
-        ejemplo = """<Operacion= SUMA>
+    def cargar_ejemplo_complejo(self):
+        ejemplo = """<!-- Operaciones simples -->
+<Operacion= SUMA>
 <Numero> 4.5 </Numero>
 <Numero> 5.32 </Numero>
 </Operacion>
@@ -73,6 +74,37 @@ class AnalizadorAritmeticoGUI:
 <Operacion= MULTIPLICACION>
 <Numero> 5 </Numero>
 <Numero> 7 </Numero>
+</Operacion>
+
+<!-- Operaciones complejas anidadas -->
+<Operacion= SUMA>
+<Numero> 5.4 </Numero>
+<Operacion= MULTIPLICACION>
+<Numero> 7.8 </Numero>
+<Numero> 4.3 </Numero>
+</Operacion>
+</Operacion>
+
+<Operacion= RESTA>
+<Numero> 100 </Numero>
+<Operacion= DIVISION>
+<Numero> 50 </Numero>
+<Numero> 2 </Numero>
+</Operacion>
+<Operacion= SUMA>
+<Numero> 10 </Numero>
+<Numero> 5 </Numero>
+</Operacion>
+</Operacion>
+
+<Operacion= POTENCIA>
+<Numero> 2 </Numero>
+<Numero> 8 </Numero>
+</Operacion>
+
+<Operacion= RAIZ>
+<Numero> 2 </Numero>
+<Numero> 16 </Numero>
 </Operacion>"""
         
         self.area_texto.insert(1.0, ejemplo)
@@ -203,6 +235,7 @@ class AnalizadorAritmeticoGUI:
         th { background-color: #2E86AB; color: white; }
         .resultado { font-weight: bold; color: #2E86AB; }
         .header { text-align: center; color: #2E86AB; }
+        .error { color: #f44336; }
     </style>
 </head>
 <body>
@@ -217,12 +250,13 @@ class AnalizadorAritmeticoGUI:
             </tr>"""
         
         for resultado in resultados:
+            clase_resultado = "error" if "Error" in str(resultado['resultado']) else "resultado"
             html_content += f"""
             <tr>
                 <td>{resultado['indice']}</td>
                 <td>{resultado['operacion'].valor}</td>
                 <td>{resultado['expresion']}</td>
-                <td class="resultado">{resultado['resultado']}</td>
+                <td class="{clase_resultado}">{resultado['resultado']}</td>
             </tr>"""
         
         html_content += """
