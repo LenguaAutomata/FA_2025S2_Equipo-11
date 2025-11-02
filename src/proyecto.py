@@ -60,7 +60,7 @@ class AnalizadorAritmeticoGUI:
         self.cargar_ejemplo_complejo()
     
     def cargar_ejemplo_complejo(self):
-        ejemplo = """<!-- Operaciones simples -->
+        ejemplo = """
 <Operacion= SUMA>
 <Numero> 4.5 </Numero>
 <Numero> 5.32 </Numero>
@@ -76,7 +76,6 @@ class AnalizadorAritmeticoGUI:
 <Numero> 7 </Numero>
 </Operacion>
 
-<!-- Operaciones complejas anidadas -->
 <Operacion= SUMA>
 <Numero> 5.4 </Numero>
 <Operacion= MULTIPLICACION>
