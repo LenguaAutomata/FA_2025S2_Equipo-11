@@ -183,7 +183,7 @@ class EjecutorOperaciones:
                     raise ValueError("MOD requiere exactamente 2 operandos")
                 resultado = resultados_hijos[0] % resultados_hijos[1]
             else:
-                resultado = sum(resultados_hijos)
+                raise ValueError(f"Operación no soportada: {nodo.valor}")
             
             nodo.resultado = resultado
             return resultado
@@ -210,9 +210,9 @@ class EjecutorOperaciones:
             elif nodo.valor == 'POTENCIA':
                 return f"({expresiones_hijos[0]} ^ {expresiones_hijos[1]})"
             elif nodo.valor == 'RAIZ':
-                return f"({expresiones_hijos[1]} √ {expresiones_hijos[0]})"
+                return f"raiz({expresiones_hijos[0]}, {expresiones_hijos[1]})"
             elif nodo.valor == 'INVERSO':
-                return f"(1 / {expresiones_hijos[0]})"
+                return f"inverso({expresiones_hijos[0]})"
             elif nodo.valor == 'MOD':
                 return f"({expresiones_hijos[0]} % {expresiones_hijos[1]})"
             else:
@@ -222,23 +222,14 @@ class EjecutorOperaciones:
 
     @staticmethod
     def generar_html_arbol(nodo, nivel=0):
-        """Generar representación HTML del árbol"""
+        """Generar representación HTML del árbol sin emojis"""
         indent = "    " * nivel
         
         if nodo.tipo == 'NUMERO':
-            return f'{indent}<div class="nodo numero" style="margin-left: {nivel * 30}px">📊 {nodo.valor}</div>\n'
+            return f'{indent}<div class="nodo numero" style="margin-left: {nivel * 30}px">Numero: {nodo.valor}</div>\n'
         
         html = f'{indent}<div class="nodo operacion" style="margin-left: {nivel * 30}px">\n'
-        
-        # Icono según la operación
-        iconos = {
-            'SUMA': '🔢', 'RESTA': '➖', 'MULTIPLICACION': '✖️', 
-            'DIVISION': '➗', 'POTENCIA': '⚡', 'RAIZ': '√', 
-            'INVERSO': '1/x', 'MOD': '%'
-        }
-        
-        icono = iconos.get(nodo.valor, '📐')
-        html += f'{indent}    {icono} <strong>{nodo.valor}</strong>'
+        html += f'{indent}    <strong>{nodo.valor}</strong>'
         
         if hasattr(nodo, 'resultado') and nodo.resultado is not None:
             html += f' = <span class="resultado">{nodo.resultado:.2f}</span>'

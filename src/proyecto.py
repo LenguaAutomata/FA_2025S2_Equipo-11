@@ -235,7 +235,7 @@ class AnalizadorAritmeticoGUI:
             f.write(html_content)
     
     def crear_diagrama_arbol_html(self, operaciones):
-        """Crear diagrama de árbol en formato HTML"""
+        """Crear diagrama de árbol en formato HTML sin emojis"""
         html_content = """<!DOCTYPE html>
 <html>
 <head>
@@ -290,7 +290,7 @@ class AnalizadorAritmeticoGUI:
         <h1 class="header">REPORTE DE ERRORES LÉXICOS</h1>"""
         
         if not errores:
-            html_content += '<div class="sin-errores">✅ No se encontraron errores léxicos</div>'
+            html_content += '<div class="sin-errores">No se encontraron errores léxicos</div>'
         else:
             html_content += """
         <table>
@@ -330,7 +330,7 @@ class AnalizadorAritmeticoGUI:
         messagebox.showinfo("Manual Tecnico", "Manual Técnico:\n\n- Desarrollado en Python 3.13\n- Analizador Léxico: Tabla de transiciones\n- Analizador Sintáctico: Árbol de operaciones\n- Interfaz: Tkinter\n- Salidas: HTML")
     
     def mostrar_ayuda(self):
-        messagebox.showinfo("Ayuda", "Desarrollado por:\n\n- Tu nombre aquí\n- Para el curso de Lenguajes Formales y Autómatas\n- 2025")
+        messagebox.showinfo("Ayuda", "Desarrollado por:\n\n- [Tu nombre aquí]\n- Para el curso de Lenguajes Formales y Autómatas\n- 2025")
 
 def main():
     root = tk.Tk()
