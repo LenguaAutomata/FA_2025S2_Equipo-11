@@ -61,10 +61,16 @@ class AnalizadorLexico:
                 continue
             
             # Ignorar espacios y tabs
-            if char in ' \t':
+            if char in '\t':
                 columna += 1
                 i += 1
                 continue
+            
+            if char in ' ':
+                columna += 1
+                i += 1
+                continue
+            
             
             inicio_columna = columna
             
