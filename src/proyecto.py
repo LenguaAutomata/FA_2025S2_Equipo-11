@@ -3,9 +3,17 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import os
 import subprocess
 import sys
-from analizador_lexico import AnalizadorLexico, Token, ErrorLexico
-from analizador_sintactico import AnalizadorSintactico, EjecutorOperaciones, NodoArbol
-from generador_arbol_graphviz import GeneradorArbolGraphviz
+
+# Ajustar las importaciones según la estructura de carpetas
+try:
+    from analizador_lexico import AnalizadorLexico, Token, ErrorLexico
+    from analizador_sintactico import AnalizadorSintactico, EjecutorOperaciones, NodoArbol
+    from generador_arbol_graphviz import GeneradorArbolGraphviz
+except ImportError:
+    # Si estamos en la carpeta src, importar directamente
+    from .analizador_lexico import AnalizadorLexico, Token, ErrorLexico
+    from .analizador_sintactico import AnalizadorSintactico, EjecutorOperaciones, NodoArbol
+    from .generador_arbol_graphviz import GeneradorArbolGraphviz
 
 class AnalizadorAritmeticoGUI:
     def __init__(self, root):
@@ -15,8 +23,17 @@ class AnalizadorAritmeticoGUI:
         
         self.analizador = AnalizadorLexico()
         self.archivo_actual = None
+        self.base_dir = self.obtener_directorio_base()
         
         self.crear_interfaz()
+    
+    def obtener_directorio_base(self):
+        """Obtener el directorio base del proyecto (Proyecto1)"""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Si estamos en src, subir un nivel
+        if os.path.basename(current_dir) == 'src':
+            return os.path.dirname(current_dir)
+        return current_dir
     
     def crear_interfaz(self):
         main_frame = ttk.Frame(self.root, padding="10")
@@ -112,8 +129,17 @@ class AnalizadorAritmeticoGUI:
         self.area_texto.insert(1.0, ejemplo)
     
     def abrir_archivo(self):
+        # Buscar archivos en la carpeta ejemplos
+        ejemplos_dir = os.path.join(self.base_dir, "ejemplos")
+        if not os.path.exists(ejemplos_dir):
+            ejemplos_dir = self.base_dir
+            
         tipos_archivo = [("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*")]
-        archivo = filedialog.askopenfilename(title="Abrir archivo", filetypes=tipos_archivo)
+        archivo = filedialog.askopenfilename(
+            title="Abrir archivo", 
+            initialdir=ejemplos_dir,
+            filetypes=tipos_archivo
+        )
         
         if archivo:
             try:
@@ -145,7 +171,11 @@ class AnalizadorAritmeticoGUI:
     
     def guardar_como_archivo(self):
         tipos_archivo = [("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*")]
-        archivo = filedialog.asksaveasfilename(title="Guardar archivo como", defaultextension=".txt", filetypes=tipos_archivo)
+        archivo = filedialog.asksaveasfilename(
+            title="Guardar archivo como", 
+            defaultextension=".txt", 
+            filetypes=tipos_archivo
+        )
         
         if archivo:
             try:
@@ -200,11 +230,11 @@ class AnalizadorAritmeticoGUI:
                                 'indice': i + 1
                             })
                     
-                    # 4. Generar Archivos
+                    # 4. Generar Archivos en el directorio base
                     self.crear_archivo_resultados(resultados)
                     self.crear_archivo_errores(errores)
                     
-                    # 5. Generar diagramas de arbol SVG
+                    # 5. Generar diagramas de arbol SVG en el directorio base
                     archivos_svg = GeneradorArbolGraphviz.generar_arbol_svg(operaciones)
                     
                     info_analisis += f"\n\nDiagramas SVG generados: {len(archivos_svg)}"
@@ -270,7 +300,8 @@ class AnalizadorAritmeticoGUI:
 </body>
 </html>"""
         
-        with open("Resultados.html", "w", encoding="utf-8") as f:
+        output_path = os.path.join(self.base_dir, "Resultados.html")
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
     
     def crear_archivo_errores(self, errores):
@@ -323,38 +354,43 @@ class AnalizadorAritmeticoGUI:
 </body>
 </html>"""
         
-        with open("Errores.html", "w", encoding="utf-8") as f:
+        output_path = os.path.join(self.base_dir, "Errores.html")
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
     
-    def abrir_imagen(self, archivo):
-        """Abrir una imagen con el programa predeterminado"""
+    def abrir_pdf(self, archivo_pdf):
+        """Abrir un archivo PDF con el programa predeterminado"""
         try:
-            if os.path.exists(archivo):
+            if os.path.exists(archivo_pdf):
                 if sys.platform == "win32":
-                    os.startfile(archivo)
+                    os.startfile(archivo_pdf)
+                elif sys.platform == "darwin":  # macOS
+                    subprocess.run(["open", archivo_pdf])
+                else:  # Linux
+                    subprocess.run(["xdg-open", archivo_pdf])
             else:
-                messagebox.showerror("Error", f"El archivo {archivo} no existe")
+                messagebox.showerror("Error", f"El archivo PDF no se encuentra:\n{archivo_pdf}")
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo abrir la imagen: {str(e)}")
+            messagebox.showerror("Error", f"No se pudo abrir el PDF: {str(e)}")
     
     def mostrar_manual_usuario(self):
-        """Mostrar manual de usuario (placeholder.png)"""
-        archivo_manual = "placeholder.png"
+        """Mostrar manual de usuario desde Documentos/"""
+        archivo_manual = os.path.join(self.base_dir, "Documentos", "Manual de Usuario - Analizador de Operaciones Aritméticas - FA_2025S2_Equipo-11.pdf")
         if os.path.exists(archivo_manual):
-            self.abrir_imagen(archivo_manual)
+            self.abrir_pdf(archivo_manual)
         else:
             messagebox.showinfo("Manual de Usuario", "Manual de Usuario:\n\n1. Escribe o carga codigo en el area de texto\n2. Haz clic en 'Analizar' para procesar\n3. Revisa los archivos generados:\n   - Resultados.html: Resultados numericos\n   - Errores.html: Reporte de errores\n   - arbol_operacion_X.svg: Diagramas de arbol")
     
     def mostrar_manual_tecnico(self):
-        """Mostrar manual tecnico (placeholder.png)"""
-        archivo_manual = "placeholder.png"
+        """Mostrar manual tecnico desde Documentos/"""
+        archivo_manual = os.path.join(self.base_dir, "Documentos", "Manual Técnico - Analizador de Operaciones Aritméticas - FA_2025S2_Equipo-11.pdf")
         if os.path.exists(archivo_manual):
-            self.abrir_imagen(archivo_manual)
+            self.abrir_pdf(archivo_manual)
         else:
             messagebox.showinfo("Manual Tecnico", "Manual Tecnico:\n\n- Desarrollado en Python\n- Analizador Lexico: Tabla de transiciones\n- Analizador Sintactico: Arbol de operaciones\n- Interfaz: Tkinter\n- Salidas: HTML y SVG")
     
     def mostrar_ayuda(self):
-        messagebox.showinfo("Ayuda", "Desarrollado por:\n\n- Mario Miguel Arevalo Perez\n- WAalter Francisco Meléndez Aguilar\n- Para el curso de Lenguajes Formales y Automatas\n- 2025")
+        messagebox.showinfo("Ayuda", "Desarrollado por:\n\n- Mario Miguel Arevalo Perez\n- Walter Francisco Melendez Aguilar\n- Para el curso de Lenguajes Formales y Automatas\n- 2025")
 
 def main():
     root = tk.Tk()
