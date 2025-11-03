@@ -42,9 +42,18 @@ class AnalizadorSintactico:
         self.operaciones = []
         
         while self.posicion_actual < len(self.tokens):
-            operacion = self.parsear_operacion()
-            if operacion:
-                self.operaciones.append(operacion)
+            # Buscar inicio de operación
+            if (self.token_actual() and 
+                self.token_actual().tipo == 'SIMBOLO_APERTURA' and
+                self.posicion_actual + 1 < len(self.tokens) and
+                self.tokens[self.posicion_actual + 1].tipo == 'PALABRA_RESERVADA' and
+                self.tokens[self.posicion_actual + 1].valor == 'OPERACION'):
+                
+                operacion = self.parsear_operacion()
+                if operacion:
+                    self.operaciones.append(operacion)
+                else:
+                    self.avanzar()
             else:
                 self.avanzar()
         
@@ -76,7 +85,7 @@ class AnalizadorSintactico:
         
         # Parsear contenido (números u operaciones anidadas)
         while self.posicion_actual < len(self.tokens):
-            # Si encontramos el cierre de la operación actual, terminamos
+            # Verificar si es el cierre de la operación actual
             if (self.token_actual() and 
                 self.token_actual().tipo == 'SIMBOLO_APERTURA' and
                 self.posicion_actual + 1 < len(self.tokens) and
@@ -92,13 +101,23 @@ class AnalizadorSintactico:
                     self.avanzar()  # >
                 break
             
-            # Intentar parsear operación anidada primero
-            operacion_anidada = self.parsear_operacion_anidada()
-            if operacion_anidada:
-                nodo_operacion.agregar_hijo(operacion_anidada)
-                continue
+            # Verificar si es una operación anidada
+            if (self.token_actual() and 
+                self.token_actual().tipo == 'SIMBOLO_APERTURA' and
+                self.posicion_actual + 1 < len(self.tokens) and
+                self.tokens[self.posicion_actual + 1].tipo == 'PALABRA_RESERVADA' and
+                self.tokens[self.posicion_actual + 1].valor == 'OPERACION'):
+                
+                # Parsear operación anidada
+                operacion_anidada = self.parsear_operacion()
+                if operacion_anidada:
+                    nodo_operacion.agregar_hijo(operacion_anidada)
+                    continue
+                else:
+                    self.avanzar()
+                    continue
             
-            # Si no es operación anidada, intentar parsear número
+            # Parsear número
             numero = self.parsear_numero()
             if numero:
                 nodo_operacion.agregar_hijo(numero)
@@ -106,57 +125,6 @@ class AnalizadorSintactico:
                 self.avanzar()
         
         return nodo_operacion
-    
-    def parsear_operacion_anidada(self):
-        """Parsear una operación anidada dentro de otra operación"""
-        inicio_pos = self.posicion_actual
-        
-        # Verificar si es una operación anidada: <Operacion= TIPO> ... </Operacion>
-        if not (self.coincidir('SIMBOLO_APERTURA') and 
-                self.coincidir('PALABRA_RESERVADA', 'OPERACION') and 
-                self.coincidir('IGUAL')):
-            self.posicion_actual = inicio_pos
-            return None
-        
-        # Obtener tipo de operación anidada
-        token_operacion = self.coincidir('PALABRA_RESERVADA')
-        if not token_operacion:
-            self.posicion_actual = inicio_pos
-            return None
-        
-        if not self.coincidir('SIMBOLO_CIERRE'):
-            self.posicion_actual = inicio_pos
-            return None
-        
-        # Crear nodo de operación anidada
-        nodo_anidado = NodoArbol('OPERACION', token_operacion.valor)
-        
-        # Parsear contenido de la operación anidada
-        while self.posicion_actual < len(self.tokens):
-            # Si encontramos el cierre de la operación anidada, terminamos
-            if (self.token_actual() and 
-                self.token_actual().tipo == 'SIMBOLO_APERTURA' and
-                self.posicion_actual + 1 < len(self.tokens) and
-                self.tokens[self.posicion_actual + 1].tipo == 'SIMBOLO_CIERRE_COMPLETO' and
-                self.posicion_actual + 2 < len(self.tokens) and
-                self.tokens[self.posicion_actual + 2].valor == 'OPERACION'):
-                
-                # Consumir </Operacion> de la operación anidada
-                self.avanzar()  # <
-                self.avanzar()  # /
-                self.avanzar()  # OPERACION
-                if self.token_actual() and self.token_actual().tipo == 'SIMBOLO_CIERRE':
-                    self.avanzar()  # >
-                break
-            
-            # Parsear números dentro de la operación anidada
-            numero = self.parsear_numero()
-            if numero:
-                nodo_anidado.agregar_hijo(numero)
-            else:
-                self.avanzar()
-        
-        return nodo_anidado
     
     def parsear_numero(self):
         """Parsear un número: <Numero> VALOR </Numero>"""
@@ -261,43 +229,46 @@ class EjecutorOperaciones:
             expresiones_hijos = [EjecutorOperaciones.generar_expresion_matematica(hijo) for hijo in nodo.hijos]
             
             if nodo.valor == 'SUMA':
-                return "(" + " + ".join(expresiones_hijos) + ")"
+                if len(expresiones_hijos) > 1:
+                    return "(" + " + ".join(expresiones_hijos) + ")"
+                else:
+                    return expresiones_hijos[0]
             elif nodo.valor == 'RESTA':
-                return "(" + " - ".join(expresiones_hijos) + ")"
+                if len(expresiones_hijos) > 1:
+                    return "(" + " - ".join(expresiones_hijos) + ")"
+                else:
+                    return expresiones_hijos[0]
             elif nodo.valor == 'MULTIPLICACION':
-                return "(" + " * ".join(expresiones_hijos) + ")"
+                if len(expresiones_hijos) > 1:
+                    return "(" + " * ".join(expresiones_hijos) + ")"
+                else:
+                    return expresiones_hijos[0]
             elif nodo.valor == 'DIVISION':
-                return "(" + " / ".join(expresiones_hijos) + ")"
+                if len(expresiones_hijos) > 1:
+                    return "(" + " / ".join(expresiones_hijos) + ")"
+                else:
+                    return expresiones_hijos[0]
             elif nodo.valor == 'POTENCIA':
-                return f"({expresiones_hijos[0]} ^ {expresiones_hijos[1]})"
+                if len(expresiones_hijos) == 2:
+                    return f"({expresiones_hijos[0]} ^ {expresiones_hijos[1]})"
+                else:
+                    return f"potencia{tuple(expresiones_hijos)}"
             elif nodo.valor == 'RAIZ':
-                return f"raiz({expresiones_hijos[0]}, {expresiones_hijos[1]})"
+                if len(expresiones_hijos) == 2:
+                    return f"raiz({expresiones_hijos[0]}, {expresiones_hijos[1]})"
+                else:
+                    return f"raiz{tuple(expresiones_hijos)}"
             elif nodo.valor == 'INVERSO':
-                return f"inverso({expresiones_hijos[0]})"
+                if len(expresiones_hijos) == 1:
+                    return f"inverso({expresiones_hijos[0]})"
+                else:
+                    return f"inverso{tuple(expresiones_hijos)}"
             elif nodo.valor == 'MOD':
-                return f"({expresiones_hijos[0]} % {expresiones_hijos[1]})"
+                if len(expresiones_hijos) == 2:
+                    return f"({expresiones_hijos[0]} % {expresiones_hijos[1]})"
+                else:
+                    return f"mod{tuple(expresiones_hijos)}"
             else:
                 return f"{nodo.valor}({', '.join(expresiones_hijos)})"
         
         return ""
-
-    @staticmethod
-    def generar_html_arbol(nodo, nivel=0):
-        """Generar representación HTML del árbol sin emojis"""
-        indent = "    " * nivel
-        
-        if nodo.tipo == 'NUMERO':
-            return f'{indent}<div class="nodo numero" style="margin-left: {nivel * 30}px">Numero: {nodo.valor}</div>\n'
-        
-        html = f'{indent}<div class="nodo operacion" style="margin-left: {nivel * 30}px">\n'
-        html += f'{indent}    <strong>{nodo.valor}</strong>'
-        
-        if hasattr(nodo, 'resultado') and nodo.resultado is not None:
-            html += f' = <span class="resultado">{nodo.resultado:.4f}</span>'
-        
-        html += f'\n{indent}</div>\n'
-        
-        for hijo in nodo.hijos:
-            html += EjecutorOperaciones.generar_html_arbol(hijo, nivel + 1)
-        
-        return html

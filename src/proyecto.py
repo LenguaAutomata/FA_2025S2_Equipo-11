@@ -1,8 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import os
+import subprocess
+import sys
 from analizador_lexico import AnalizadorLexico, Token, ErrorLexico
 from analizador_sintactico import AnalizadorSintactico, EjecutorOperaciones, NodoArbol
+from generador_arbol_graphviz import GeneradorArbolGraphviz
 
 class AnalizadorAritmeticoGUI:
     def __init__(self, root):
@@ -164,13 +167,13 @@ class AnalizadorAritmeticoGUI:
             return
         
         try:
-            # 1. Análisis Léxico
+            # 1. Analisis Lexico
             tokens, errores = self.analizador.analizar(contenido)
             
-            info_analisis = f"Analisis Léxico Completado:\n\nTokens reconocidos: {len(tokens)}\nErrores léxicos: {len(errores)}"
+            info_analisis = f"Analisis Lexico Completado:\n\nTokens reconocidos: {len(tokens)}\nErrores lexicos: {len(errores)}"
             
             if not errores:
-                # 2. Análisis Sintáctico
+                # 2. Analisis Sintactico
                 analizador_sintactico = AnalizadorSintactico(tokens)
                 operaciones = analizador_sintactico.parsear()
                 
@@ -199,22 +202,25 @@ class AnalizadorAritmeticoGUI:
                     
                     # 4. Generar Archivos
                     self.crear_archivo_resultados(resultados)
-                    self.crear_diagrama_arbol_html(operaciones)
                     self.crear_archivo_errores(errores)
                     
-                    info_analisis += f"\n\nArchivos generados:\n- Resultados.html\n- Errores.html\n- ArbolOperaciones.html"
+                    # 5. Generar diagramas de arbol SVG
+                    archivos_svg = GeneradorArbolGraphviz.generar_arbol_svg(operaciones)
                     
-                    # Mostrar resultados en consola también
+                    info_analisis += f"\n\nDiagramas SVG generados: {len(archivos_svg)}"
+                    info_analisis += f"\n\nArchivos generados:\n- Resultados.html\n- Errores.html\n- arbol_operacion_X.svg"
+                    
+                    # Mostrar resultados en consola tambien si se quiere
                     print("\n=== RESULTADOS DE OPERACIONES ===")
                     for resultado in resultados:
-                        print(f"Operación {resultado['indice']}: {resultado['expresion']} = {resultado['resultado']}")
+                        print(f"Operacion {resultado['indice']}: {resultado['expresion']} = {resultado['resultado']}")
                         
                 else:
-                    info_analisis += "\n\nNo se encontraron operaciones válidas"
+                    info_analisis += "\n\nNo se encontraron operaciones validas"
                     self.crear_archivo_errores(errores)
             else:
                 self.crear_archivo_errores(errores)
-                info_analisis += f"\n\nNo se ejecutaron operaciones debido a errores léxicos"
+                info_analisis += f"\n\nNo se ejecutaron operaciones debido a errores lexicos"
             
             messagebox.showinfo("Analisis Completado", info_analisis)
             
@@ -239,12 +245,12 @@ class AnalizadorAritmeticoGUI:
 </head>
 <body>
     <div class="container">
-        <h1 class="header">Resultados de Operaciones Aritméticas</h1>
+        <h1 class="header">Resultados de Operaciones Aritmeticas</h1>
         <table>
             <tr>
                 <th>No</th>
-                <th>Operación</th>
-                <th>Expresión</th>
+                <th>Operacion</th>
+                <th>Expresion</th>
                 <th>Resultado</th>
             </tr>"""
         
@@ -267,47 +273,11 @@ class AnalizadorAritmeticoGUI:
         with open("Resultados.html", "w", encoding="utf-8") as f:
             f.write(html_content)
     
-    def crear_diagrama_arbol_html(self, operaciones):
-        """Crear diagrama de árbol en formato HTML sin emojis"""
-        html_content = """<!DOCTYPE html>
-<html>
-<head>
-    <title>Diagrama de Árbol de Operaciones</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .nodo { margin: 10px 0; padding: 12px; border-radius: 5px; transition: all 0.3s; }
-        .nodo:hover { transform: translateX(5px); }
-        .operacion { background-color: #e3f2fd; border-left: 4px solid #2196F3; font-weight: bold; }
-        .numero { background-color: #e8f5e8; border-left: 4px solid #4CAF50; }
-        .resultado { color: #FF5722; font-weight: bold; }
-        .header { text-align: center; color: #2E86AB; margin-bottom: 30px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="header">Diagrama de Árbol de Operaciones</h1>"""
-        
-        for i, operacion in enumerate(operaciones):
-            html_content += f"""
-        <div class="operacion-seccion">
-            <h2>Operación {i+1}: {operacion.valor}</h2>
-            {EjecutorOperaciones.generar_html_arbol(operacion)}
-        </div>"""
-        
-        html_content += """
-    </div>
-</body>
-</html>"""
-        
-        with open("ArbolOperaciones.html", "w", encoding="utf-8") as f:
-            f.write(html_content)
-    
     def crear_archivo_errores(self, errores):
         html_content = """<!DOCTYPE html>
 <html>
 <head>
-    <title>Reporte de Errores Léxicos</title>
+    <title>Reporte de Errores Lexicos</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -320,18 +290,18 @@ class AnalizadorAritmeticoGUI:
 </head>
 <body>
     <div class="container">
-        <h1 class="header">REPORTE DE ERRORES LÉXICOS</h1>"""
+        <h1 class="header">REPORTE DE ERRORES LEXICOS</h1>"""
         
         if not errores:
-            html_content += '<div class="sin-errores">No se encontraron errores léxicos</div>'
+            html_content += '<div class="sin-errores">No se encontraron errores lexicos</div>'
         else:
             html_content += """
         <table>
             <tr>
                 <th>No</th>
                 <th>Lexema</th>
-                <th>Descripción</th>
-                <th>Línea</th>
+                <th>Descripcion</th>
+                <th>Linea</th>
                 <th>Columna</th>
             </tr>"""
             
@@ -356,14 +326,35 @@ class AnalizadorAritmeticoGUI:
         with open("Errores.html", "w", encoding="utf-8") as f:
             f.write(html_content)
     
+    def abrir_imagen(self, archivo):
+        """Abrir una imagen con el programa predeterminado"""
+        try:
+            if os.path.exists(archivo):
+                if sys.platform == "win32":
+                    os.startfile(archivo)
+            else:
+                messagebox.showerror("Error", f"El archivo {archivo} no existe")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo abrir la imagen: {str(e)}")
+    
     def mostrar_manual_usuario(self):
-        messagebox.showinfo("Manual de Usuario", "Manual de Usuario:\n\n1. Escribe o carga código en el área de texto\n2. Haz clic en 'Analizar' para procesar\n3. Revisa los archivos generados: Resultados.html, Errores.html, ArbolOperaciones.html")
+        """Mostrar manual de usuario (placeholder.png)"""
+        archivo_manual = "placeholder.png"
+        if os.path.exists(archivo_manual):
+            self.abrir_imagen(archivo_manual)
+        else:
+            messagebox.showinfo("Manual de Usuario", "Manual de Usuario:\n\n1. Escribe o carga codigo en el area de texto\n2. Haz clic en 'Analizar' para procesar\n3. Revisa los archivos generados:\n   - Resultados.html: Resultados numericos\n   - Errores.html: Reporte de errores\n   - arbol_operacion_X.svg: Diagramas de arbol")
     
     def mostrar_manual_tecnico(self):
-        messagebox.showinfo("Manual Tecnico", "Manual Técnico:\n\n- Desarrollado en Python 3.13\n- Analizador Léxico: Tabla de transiciones\n- Analizador Sintáctico: Árbol de operaciones\n- Interfaz: Tkinter\n- Salidas: HTML")
+        """Mostrar manual tecnico (placeholder.png)"""
+        archivo_manual = "placeholder.png"
+        if os.path.exists(archivo_manual):
+            self.abrir_imagen(archivo_manual)
+        else:
+            messagebox.showinfo("Manual Tecnico", "Manual Tecnico:\n\n- Desarrollado en Python\n- Analizador Lexico: Tabla de transiciones\n- Analizador Sintactico: Arbol de operaciones\n- Interfaz: Tkinter\n- Salidas: HTML y SVG")
     
     def mostrar_ayuda(self):
-        messagebox.showinfo("Ayuda", "Desarrollado por:\n\n- [Tu nombre aquí]\n- Para el curso de Lenguajes Formales y Autómatas\n- 2025")
+        messagebox.showinfo("Ayuda", "Desarrollado por:\n\n- Mario Miguel Arevalo Perez\n- WAalter Francisco Meléndez Aguilar\n- Para el curso de Lenguajes Formales y Automatas\n- 2025")
 
 def main():
     root = tk.Tk()
